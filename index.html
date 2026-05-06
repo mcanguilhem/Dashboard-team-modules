@@ -100,6 +100,13 @@
   .save-btn { font-size: 12px; padding: 6px 16px; cursor: pointer; border-radius: var(--radius); border: 0.5px solid var(--blue); background: var(--blue); color: #E6F1FB; font-weight: 500; }
   .save-btn:hover { background: var(--blue-text); }
   .cancel-btn { font-size: 12px; padding: 6px 12px; cursor: pointer; border-radius: var(--radius); border: 0.5px solid var(--border2); background: transparent; color: var(--text2); }
+  .absence-banner { border-radius: var(--radius-lg); padding: 10px 16px; margin-bottom: 1.25rem; border: 0.5px solid; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .absence-banner.has-absents { background: #FAEEDA; border-color: #BA7517; }
+  .absence-banner.all-present { background: #E1F5EE; border-color: #1D9E75; }
+  .banner-icon { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+  .banner-label { font-size: 12px; font-weight: 500; }
+  .absence-chip { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; padding: 3px 10px; border-radius: 99px; background: rgba(0,0,0,0.07); }
+  .absence-chip .retour { font-size: 11px; color: var(--text2); }
   .del-btn { font-size: 11px; padding: 2px 8px; cursor: pointer; border-radius: 4px; border: 0.5px solid var(--border2); background: transparent; color: var(--text3); margin-left: auto; }
 </style>
 </head>
@@ -107,6 +114,8 @@
 <div class="app">
   <h1>Dashboard équipe</h1>
   <p class="subtitle">Visibilité projets, congés et remplaçants</p>
+
+  <div id="absence-banner"></div>
 
   <div class="tabs">
     <div class="tab active" onclick="showTab('matrix')">Projets par membre</div>
@@ -235,6 +244,33 @@ function parseDate(s){const[y,m,d]=s.split('-').map(Number);return new Date(y,m-
 function daysInMonth(y,m){return new Date(y,m+1,0).getDate();}
 function isWeekend(y,m,d){const dw=new Date(y,m,d).getDay();return dw===0||dw===6;}
 
+/* ---- BANDEAU ABSENCES DU JOUR ---- */
+function renderBanner(){
+  const now=new Date();
+  const todayStr=now.getFullYear()+'-'+String(now.getMonth()+1).padStart(2,'0')+'-'+String(now.getDate()).padStart(2,'0');
+  const absents=vacations.map(v=>{
+    const mem=MEMBERS.find(x=>x.id===v.memberId);
+    if(!mem) return null;
+    if(todayStr>=v.start && todayStr<=v.end){
+      const ve=parseDate(v.end);
+      const retour=new Date(ve);
+      retour.setDate(retour.getDate()+1);
+      const retourFmt=retour.toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long'});
+      return {mem, retourFmt};
+    }
+    return null;
+  }).filter(Boolean);
+  const banner=document.getElementById('absence-banner');
+  if(absents.length===0){
+    banner.className='absence-banner all-present';
+    banner.innerHTML=`<div class="banner-icon" style="background:#1D9E75;"></div><span class="banner-label">Toute l'équipe est présente aujourd'hui</span>`;
+  } else {
+    const chips=absents.map(a=>`<span class="absence-chip"><span style="display:inline-flex;width:20px;height:20px;border-radius:50%;background:${ROLE_BG[a.mem.role]};color:${ROLE_TXT[a.mem.role]};align-items:center;justify-content:center;font-size:9px;font-weight:500;">${initials(a.mem.name)}</span><strong>${a.mem.name}</strong><span class="retour">retour ${a.retourFmt}</span></span>`).join('');
+    banner.className='absence-banner has-absents';
+    banner.innerHTML=`<div class="banner-icon" style="background:#BA7517;"></div><span class="banner-label">Absent${absents.length>1?'s':''} aujourd'hui :</span>${chips}`;
+  }
+}
+
 function showTab(t){
   document.querySelectorAll('.tab').forEach((el,i)=>el.classList.toggle('active',['matrix','timeline','vacations'][i]===t));
   document.querySelectorAll('.panel').forEach(el=>el.classList.remove('active'));
@@ -276,7 +312,7 @@ function renderMatrix(){
 }
 
 /* ---- TIMELINE ---- */
-let tlYear=2025, tlMonth=7;
+const _now=new Date(); let tlYear=_now.getFullYear(), tlMonth=_now.getMonth();
 function changeMonth(d){
   tlMonth+=d;
   if(tlMonth>11){tlMonth=0;tlYear++;}
@@ -289,10 +325,19 @@ function addVacTL(){
   const s=document.getElementById('tl-form-start').value;
   const e=document.getElementById('tl-form-end').value;
   if(!mid||!s||!e){alert('Remplissez tous les champs.');return;}
+  if(s>e){alert('La date de fin doit être après la date de début.');return;}
   vacations.push({id:Date.now(),memberId:mid,start:s,end:e,replacements:{}});
-  saveVacations(); toggleTLForm(); renderTimeline(); renderVacations();
+  saveVacations();
+  toggleTLForm();
+  document.getElementById('tl-form-start').value='';
+  document.getElementById('tl-form-end').value='';
+  const startMonth=parseInt(s.split('-')[1])-1;
+  const startYear=parseInt(s.split('-')[0]);
+  tlYear=startYear; tlMonth=startMonth;
+  renderTimeline();
+  renderVacations();
 }
-function removeVac(id){vacations=vacations.filter(v=>v.id!==id);saveVacations();renderTimeline();renderVacations();}
+function removeVac(id){vacations=vacations.filter(v=>v.id!==id);saveVacations();renderTimeline();renderVacations();renderBanner();}
 
 function getVacsInMonth(memberId,y,m){
   const days=daysInMonth(y,m);
@@ -368,7 +413,7 @@ function addVacForm(){
   const e=document.getElementById('vac-form-end').value;
   if(!mid||!s||!e){alert('Remplissez tous les champs.');return;}
   vacations.push({id:Date.now(),memberId:mid,start:s,end:e,replacements:{}});
-  saveVacations(); toggleVacForm(); renderVacations();
+  saveVacations(); toggleVacForm(); renderVacations(); renderBanner();
 }
 function setReplacement(vacId,projId,replId){
   const v=vacations.find(v=>v.id===vacId);
@@ -412,6 +457,7 @@ populateFilters();
 renderMatrix();
 renderTimeline();
 renderVacations();
+renderBanner();
 </script>
 </body>
 </html>
