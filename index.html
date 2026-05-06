@@ -231,6 +231,12 @@ const PROJECTS=[
   {id:'hipay',           name:'Hipay',            members:['fred','antho']},
 ];
 const ROLE_COLOR={cp:'#7F77DD', support:'#EF9F27', dev:'#1D9E75'};
+const MEMBER_COLOR={antho:{bg:'#003087',txt:'#FFFFFF',dot:'#003087',badge_bg:'#C8102E',badge_txt:'#FFFFFF'}};
+function getMemberBg(m){ return MEMBER_COLOR[m.id]?MEMBER_COLOR[m.id].bg:ROLE_BG[m.role]; }
+function getMemberTxt(m){ return MEMBER_COLOR[m.id]?MEMBER_COLOR[m.id].txt:ROLE_TXT[m.role]; }
+function getMemberDot(m){ return MEMBER_COLOR[m.id]?MEMBER_COLOR[m.id].dot:ROLE_COLOR[m.role]; }
+function getMemberBadgeBg(m){ return MEMBER_COLOR[m.id]?MEMBER_COLOR[m.id].badge_bg:ROLE_BG[m.role]; }
+function getMemberBadgeTxt(m){ return MEMBER_COLOR[m.id]?MEMBER_COLOR[m.id].badge_txt:ROLE_TXT[m.role]; }
 const ROLE_BG={cp:'#EEEDFE', support:'#FAEEDA', dev:'#E1F5EE'};
 const ROLE_TXT={cp:'#3C3489', support:'#633806', dev:'#085041'};
 const BADGE_LABEL={cp:'CP', dev:'Dev', support:'Resp. support / CP'};
@@ -241,7 +247,10 @@ let vacations=[];
 // loadVacations remplacé par Firebase
 // saveVacations remplacé par Firebase
 
-function initials(n){return n.slice(0,2).toUpperCase();}
+function initials(n){
+  if(n==='Antho') return 'OL';
+  return n.slice(0,2).toUpperCase();
+}
 function parseDate(s){const[y,m,d]=s.split('-').map(Number);return new Date(y,m-1,d);}
 function daysInMonth(y,m){return new Date(y,m+1,0).getDate();}
 function isWeekend(y,m,d){const dw=new Date(y,m,d).getDay();return dw===0||dw===6;}
@@ -267,7 +276,7 @@ function renderBanner(){
     banner.className='absence-banner all-present';
     banner.innerHTML=`<div class="banner-icon" style="background:#1D9E75;"></div><span class="banner-label">Toute l'équipe est présente aujourd'hui</span>`;
   } else {
-    const chips=absents.map(a=>`<span class="absence-chip"><span style="display:inline-flex;width:20px;height:20px;border-radius:50%;background:${ROLE_BG[a.mem.role]};color:${ROLE_TXT[a.mem.role]};align-items:center;justify-content:center;font-size:9px;font-weight:500;">${initials(a.mem.name)}</span><strong>${a.mem.name}</strong><span class="retour">retour ${a.retourFmt}</span></span>`).join('');
+    const chips=absents.map(a=>`<span class="absence-chip"><span style="display:inline-flex;width:20px;height:20px;border-radius:50%;background:${getMemberBg(a.mem)};color:${getMemberTxt(a.mem)};align-items:center;justify-content:center;font-size:9px;font-weight:500;">${initials(a.mem.name)}</span><strong>${a.mem.name}</strong><span class="retour">retour ${a.retourFmt}</span></span>`).join('');
     banner.className='absence-banner has-absents';
     banner.innerHTML=`<div class="banner-icon" style="background:#BA7517;"></div><span class="banner-label">Absent${absents.length>1?'s':''} aujourd'hui :</span>${chips}`;
   }
@@ -334,7 +343,7 @@ function renderMatrix(){
   h+='<th>Nb projets</th></tr></thead><tbody>';
   members.forEach(m=>{
     const count=PROJECTS.filter(p=>p.members.includes(m.id)).length;
-    h+=`<tr><td><div class="member-cell"><div class="avatar" style="background:${ROLE_BG[m.role]};color:${ROLE_TXT[m.role]};">${initials(m.name)}</div><div><div style="font-size:12px;font-weight:500;">${m.name}</div><span class="badge" style="background:${ROLE_BG[m.role]};color:${ROLE_TXT[m.role]};">${BADGE_LABEL[m.role]}</span></div></div></td>`;
+    h+=`<tr><td><div class="member-cell"><div class="avatar" style="background:${getMemberBg(m)};color:${getMemberTxt(m)};">${initials(m.name)}</div><div><div style="font-size:12px;font-weight:500;">${m.name}</div><span class="badge" style="background:${getMemberBadgeBg(m)};color:${getMemberBadgeTxt(m)};">${BADGE_LABEL[m.role]}</span></div></div></td>`;
     projects.forEach(p=>{
       const assigned=p.members.includes(m.id);
       const isRepl=activeRepls[m.id]&&activeRepls[m.id].includes(p.id)&&!assigned;
@@ -345,7 +354,7 @@ function renderMatrix(){
       if(isRepl){
         h+=`<div class="dot" style="background:#378ADD;border:2px solid #185FA5;"></div>`;
       } else {
-        h+=`<div class="dot" style="background:${a?ROLE_COLOR[m.role]:'transparent'};${!a?'border:0.5px solid #ccc;':''}"></div>`;
+        h+=`<div class="dot" style="background:${a?getMemberDot(m):'transparent'};${!a?'border:0.5px solid #ccc;':''}"></div>`;
       }
       h+=`</td>`;
     });
@@ -417,12 +426,12 @@ function renderTimeline(){
   h+='</div></div>';
   MEMBERS.forEach(mem=>{
     const vacsM=getVacsInMonth(mem.id,y,m);
-    h+=`<div class="tl-row"><div class="tl-name"><div class="avatar" style="background:${ROLE_BG[mem.role]};color:${ROLE_TXT[mem.role]};width:22px;height:22px;font-size:9px;">${initials(mem.name)}</div><span style="font-size:11px;font-weight:500;">${mem.name}</span></div><div class="tl-cells">`;
+    h+=`<div class="tl-row"><div class="tl-name"><div class="avatar" style="background:${getMemberBg(mem)};color:${getMemberTxt(mem)};width:22px;height:22px;font-size:9px;">${initials(mem.name)}</div><span style="font-size:11px;font-weight:500;">${mem.name}</span></div><div class="tl-cells">`;
     for(let d=1;d<=days;d++) h+=`<div class="tl-cell${isWeekend(y,m,d)?' we':''}"></div>`;
     vacsM.forEach(v=>{
       const l=((v.startDay-1)/days*100).toFixed(2);
       const w=((v.endDay-v.startDay+1)/days*100).toFixed(2);
-      h+=`<div class="vac-bar" style="left:${l}%;width:${w}%;background:${ROLE_COLOR[mem.role]};" title="Cliquer pour supprimer" onclick="removeVac(${v.id})">${v.endDay-v.startDay>=2?mem.name:''}</div>`;
+      h+=`<div class="vac-bar" style="left:${l}%;width:${w}%;background:${getMemberDot(mem)};" title="Cliquer pour supprimer" onclick="removeVac(${v.id})">${v.endDay-v.startDay>=2?mem.name:''}</div>`;
     });
     h+='</div></div>';
   });
@@ -474,7 +483,7 @@ function renderVacations(){
     const sf=new Date(v.start).toLocaleDateString('fr-FR',{day:'2-digit',month:'short',year:'numeric'});
     const ef=new Date(v.end).toLocaleDateString('fr-FR',{day:'2-digit',month:'short',year:'numeric'});
     h+=`<div class="vcard"><div class="vcard-head">
-      <div class="avatar" style="background:${ROLE_BG[mem.role]};color:${ROLE_TXT[mem.role]};width:34px;height:34px;font-size:11px;">${initials(mem.name)}</div>
+      <div class="avatar" style="background:${getMemberBg(mem)};color:${getMemberTxt(mem)};width:34px;height:34px;font-size:11px;">${initials(mem.name)}</div>
       <div><div class="vcard-name">${mem.name}</div><div class="vcard-role">${mem.label}</div></div>
       <button class="del-btn" onclick="removeVac(${v.id})">Suppr.</button>
     </div>
