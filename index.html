@@ -136,6 +136,7 @@
       <div class="legend-item"><div class="legend-dot" style="background:#EF9F27;"></div> Resp. support / CP</div>
       <div class="legend-item"><div class="legend-dot" style="background:#1D9E75;"></div> Développeur</div>
       <div class="legend-item"><div class="legend-dot" style="border:0.5px solid #ccc;"></div> Non assigné</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#378ADD;border:2px solid #185FA5;"></div> Remplaçant actif (temporaire)</div>
       <div class="legend-item" style="color:var(--text3);font-style:italic;">Cliquer sur un point pour assigner / désassigner</div>
     </div>
     <div class="matrix-wrap"><table class="matrix" id="matrix-table"></table></div>
@@ -304,11 +305,29 @@ function toggleAssignment(memberId, projectId){
 
 // saveProjects et loadProjects remplacés par Firebase
 
+function getActiveReplacements(){
+  const today=new Date();
+  const todayStr=today.getFullYear()+'-'+String(today.getMonth()+1).padStart(2,'0')+'-'+String(today.getDate()).padStart(2,'0');
+  const active={};
+  vacations.forEach(v=>{
+    if(todayStr>=v.start && todayStr<=v.end && v.replacements){
+      Object.entries(v.replacements).forEach(([projId,replId])=>{
+        if(replId){
+          if(!active[replId]) active[replId]=[];
+          if(!active[replId].includes(projId)) active[replId].push(projId);
+        }
+      });
+    }
+  });
+  return active;
+}
+
 function renderMatrix(){
   const mf=document.getElementById('filter-member').value;
   const pf=document.getElementById('filter-proj').value;
   let members=MEMBERS.filter(m=>!mf||m.id===mf);
   let projects=pf?PROJECTS.filter(p=>p.id===pf):(mf?PROJECTS.filter(p=>p.members.includes(mf)):PROJECTS);
+  const activeRepls=getActiveReplacements();
   const t=document.getElementById('matrix-table');
   let h='<thead><tr><th style="min-width:140px;">Membre</th>';
   projects.forEach(p=>h+=`<th class="proj" title="${p.name}">${p.name}</th>`);
@@ -317,8 +336,18 @@ function renderMatrix(){
     const count=PROJECTS.filter(p=>p.members.includes(m.id)).length;
     h+=`<tr><td><div class="member-cell"><div class="avatar" style="background:${ROLE_BG[m.role]};color:${ROLE_TXT[m.role]};">${initials(m.name)}</div><div><div style="font-size:12px;font-weight:500;">${m.name}</div><span class="badge" style="background:${ROLE_BG[m.role]};color:${ROLE_TXT[m.role]};">${BADGE_LABEL[m.role]}</span></div></div></td>`;
     projects.forEach(p=>{
-      const a=p.members.includes(m.id);
-      h+=`<td class="dot-cell" onclick="toggleAssignment('${m.id}','${p.id}')" title="${a?'Retirer '+m.name+' de '+p.name:'Ajouter '+m.name+' à '+p.name}"><div class="dot" style="background:${a?ROLE_COLOR[m.role]:'transparent'};${!a?'border:0.5px solid #ccc;':''}"></div></td>`;
+      const assigned=p.members.includes(m.id);
+      const isRepl=activeRepls[m.id]&&activeRepls[m.id].includes(p.id)&&!assigned;
+      const a=assigned||isRepl;
+      const dotColor=isRepl?'#B5D4F4':ROLE_COLOR[m.role];
+      const title=isRepl?m.name+' remplaçant sur '+p.name+' (temporaire)':(assigned?'Retirer '+m.name+' de '+p.name:'Ajouter '+m.name+' à '+p.name);
+      h+=`<td class="dot-cell" onclick="${isRepl?'':"toggleAssignment('"+m.id+"','"+p.id+"')"}" style="${isRepl?'cursor:default;':''}" title="${title}">`;
+      if(isRepl){
+        h+=`<div class="dot" style="background:#378ADD;border:2px solid #185FA5;"></div>`;
+      } else {
+        h+=`<div class="dot" style="background:${a?ROLE_COLOR[m.role]:'transparent'};${!a?'border:0.5px solid #ccc;':''}"></div>`;
+      }
+      h+=`</td>`;
     });
     h+=`<td style="font-size:12px;font-weight:500;color:var(--text2);">${count}</td></tr>`;
   });
