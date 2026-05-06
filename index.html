@@ -110,10 +110,37 @@
   .absence-chip { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; padding: 3px 10px; border-radius: 99px; background: rgba(0,0,0,0.07); }
   .absence-chip .retour { font-size: 11px; color: var(--text2); }
   .del-btn { font-size: 11px; padding: 2px 8px; cursor: pointer; border-radius: 4px; border: 0.5px solid var(--border2); background: transparent; color: var(--text3); margin-left: auto; }
+  .edit-btn { font-size: 11px; padding: 2px 8px; cursor: pointer; border-radius: 4px; border: 0.5px solid var(--blue); background: transparent; color: var(--blue); margin-left: 4px; }
+  .login-overlay { position: fixed; inset: 0; background: var(--bg3); display: flex; align-items: center; justify-content: center; z-index: 1000; }
+  .login-box { background: var(--bg); border: 0.5px solid var(--border2); border-radius: var(--radius-lg); padding: 2rem; width: 100%; max-width: 340px; }
+  .login-box h2 { font-size: 18px; font-weight: 500; margin-bottom: 6px; }
+  .login-box p { font-size: 13px; color: var(--text2); margin-bottom: 1.5rem; }
+  .login-box label { font-size: 12px; color: var(--text2); display: block; margin-bottom: 4px; }
+  .login-box input { font-size: 13px; padding: 8px 10px; border-radius: var(--radius); border: 0.5px solid var(--border2); background: var(--bg2); color: var(--text); width: 100%; margin-bottom: 12px; }
+  .login-box input:focus { outline: none; border-color: var(--blue); }
+  .login-error { font-size: 12px; color: #C8102E; margin-bottom: 10px; display: none; }
+  .login-btn { width: 100%; padding: 9px; font-size: 13px; font-weight: 500; cursor: pointer; border-radius: var(--radius); border: none; background: var(--blue); color: #E6F1FB; }
+  .login-btn:hover { background: var(--blue-text); }
+  .edit-form { background: var(--bg2); border-radius: var(--radius); padding: 10px; margin-top: 8px; border: 0.5px solid var(--border); }
+  .edit-form label { font-size: 11px; color: var(--text2); display: block; margin-bottom: 3px; }
+  .edit-form input { font-size: 12px; padding: 4px 8px; border-radius: 4px; border: 0.5px solid var(--border2); background: var(--bg); color: var(--text); width: 100%; margin-bottom: 8px; }
+  .edit-form-row { display: flex; gap: 8px; } .edit-form-row > div { flex: 1; }
 </style>
 </head>
 <body>
-<div class="app">
+<div id="login-overlay" class="login-overlay">
+  <div class="login-box">
+    <h2>Dashboard équipe</h2>
+    <p>Connectez-vous avec votre compte <strong>@evolutive.com</strong></p>
+    <div class="login-error" id="login-error">Accès non autorisé pour ce compte.</div>
+    <button class="login-btn" onclick="doLogin()" style="display:flex;align-items:center;justify-content:center;gap:10px;">
+      <svg width="18" height="18" viewBox="0 0 18 18"><path fill="#4285F4" d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844c-.209 1.125-.843 2.078-1.796 2.717v2.258h2.908c1.702-1.567 2.684-3.875 2.684-6.615z"/><path fill="#34A853" d="M9 18c2.43 0 4.467-.806 5.956-2.184l-2.908-2.258c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332A8.997 8.997 0 0 0 9 18z"/><path fill="#FBBC05" d="M3.964 10.707A5.41 5.41 0 0 1 3.682 9c0-.593.102-1.17.282-1.707V4.961H.957A8.996 8.996 0 0 0 0 9c0 1.452.348 2.827.957 4.039l3.007-2.332z"/><path fill="#EA4335" d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0A8.997 8.997 0 0 0 .957 4.961L3.964 7.293C4.672 5.163 6.656 3.58 9 3.58z"/></svg>
+      Se connecter avec Google
+    </button>
+  </div>
+</div>
+
+<div class="app" id="main-app" style="display:none;">
   <h1>Dashboard équipe</h1>
   <p class="subtitle">Visibilité projets, congés et remplaçants</p>
 
@@ -202,7 +229,77 @@
 
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
 <script>
+// AUTH GOOGLE
+const ALLOWED_EMAILS = [
+  'agirard@evolutive.com',
+  'fcassado@evolutive.com',
+  'kpetitgenet@evolutive.com',
+  'skhouja@evolutive.com',
+  'ikarmeni@evolutive.com',
+  'tcysique@evolutive.com',
+  'mcanguilhem@evolutive.com'
+];
+
+function doLogin(){
+  const provider = new firebase.auth.GoogleAuthProvider();
+  provider.setCustomParameters({ hd: 'evolutive.com' });
+  firebase.auth().signInWithPopup(provider)
+    .then(result => {
+      const email = result.user.email;
+      if(ALLOWED_EMAILS.includes(email)){
+        document.getElementById('login-overlay').style.display='none';
+        document.getElementById('main-app').style.display='block';
+      } else {
+        firebase.auth().signOut();
+        document.getElementById('login-error').style.display='block';
+        document.getElementById('login-error').textContent='Accès non autorisé pour ce compte.';
+      }
+    })
+    .catch(err => {
+      document.getElementById('login-error').style.display='block';
+      document.getElementById('login-error').textContent='Erreur de connexion. Réessayez.';
+    });
+}
+
+function checkAuth(){
+  firebase.auth().onAuthStateChanged(user => {
+    if(user && ALLOWED_EMAILS.includes(user.email)){
+      document.getElementById('login-overlay').style.display='none';
+      document.getElementById('main-app').style.display='block';
+      loadFromFirebase();
+    } else {
+      document.getElementById('login-overlay').style.display='flex';
+      document.getElementById('main-app').style.display='none';
+    }
+  });
+}
+
+// EDIT CONGE
+let editingVacId=null;
+function startEditVac(id){
+  editingVacId=id;
+  const v=vacations.find(x=>x.id===id);
+  if(!v) return;
+  renderVacations();
+}
+function saveEditVac(id){
+  const v=vacations.find(x=>x.id===id);
+  if(!v) return;
+  const s=document.getElementById('edit-start-'+id).value;
+  const e=document.getElementById('edit-end-'+id).value;
+  if(!s||!e){alert('Remplissez les deux dates.');return;}
+  if(s>e){alert('La date de fin doit être après la date de début.');return;}
+  v.start=s; v.end=e;
+  editingVacId=null;
+  saveVacations(); renderVacations(); renderTimeline(); renderBanner();
+}
+function cancelEditVac(){
+  editingVacId=null;
+  renderVacations();
+}
+
 const MEMBERS=[
   {id:'selim',  name:'Selim',  role:'support', label:'Resp. support / CP'},
   {id:'maxime', name:'Maxime', role:'cp',      label:'Chef de projet'},
@@ -485,9 +582,21 @@ function renderVacations(){
     h+=`<div class="vcard"><div class="vcard-head">
       <div class="avatar" style="background:${getMemberBg(mem)};color:${getMemberTxt(mem)};width:34px;height:34px;font-size:11px;">${initials(mem.name)}</div>
       <div><div class="vcard-name">${mem.name}</div><div class="vcard-role">${mem.label}</div></div>
+      <button class="edit-btn" onclick="startEditVac(${v.id})">Modifier</button>
       <button class="del-btn" onclick="removeVac(${v.id})">Suppr.</button>
     </div>
-    <div class="vcard-dates"><span style="font-size:10px;color:var(--text3);display:block;margin-bottom:2px;">Période de congé</span>${sf} → ${ef}</div>
+    ${editingVacId===v.id ? `
+    <div class="edit-form">
+      <div class="edit-form-row">
+        <div><label>Du</label><input type="date" id="edit-start-${v.id}" value="${v.start}"></div>
+        <div><label>Au</label><input type="date" id="edit-end-${v.id}" value="${v.end}"></div>
+      </div>
+      <div style="display:flex;gap:8px;">
+        <button class="save-btn" style="font-size:11px;padding:4px 12px;" onclick="saveEditVac(${v.id})">Enregistrer</button>
+        <button class="cancel-btn" style="font-size:11px;padding:4px 10px;" onclick="cancelEditVac()">Annuler</button>
+      </div>
+    </div>` : `
+    <div class="vcard-dates"><span style="font-size:10px;color:var(--text3);display:block;margin-bottom:2px;">Période de congé</span>${sf} → ${ef}</div>`}
     <div style="font-size:11px;color:var(--text3);margin-bottom:6px;">Projets concernés — définir un remplaçant</div>`;
     if(projs.length===0) h+='<div style="font-size:12px;color:var(--text3);">Aucun projet assigné</div>';
     projs.forEach(p=>{
@@ -555,7 +664,7 @@ _db.collection('data').doc('projects').onSnapshot(snap => {
   }
 });
 
-loadFromFirebase();
+checkAuth();
 </script>
 </body>
 </html>
