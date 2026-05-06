@@ -1,0 +1,417 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dashboard équipe — Projets & Congés</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #ffffff; --bg2: #f7f7f5; --bg3: #efefec;
+    --text: #1a1a18; --text2: #6b6b66; --text3: #a0a09a;
+    --border: rgba(0,0,0,0.12); --border2: rgba(0,0,0,0.22);
+    --radius: 8px; --radius-lg: 12px;
+    --blue: #185FA5; --blue-bg: #E6F1FB; --blue-text: #0C447C;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #1e1e1c; --bg2: #2a2a28; --bg3: #333330;
+      --text: #f0f0ec; --text2: #a0a09a; --text3: #6b6b66;
+      --border: rgba(255,255,255,0.12); --border2: rgba(255,255,255,0.22);
+      --blue-bg: #042C53; --blue-text: #85B7EB;
+    }
+  }
+  body { font-family: system-ui, -apple-system, sans-serif; background: var(--bg3); color: var(--text); font-size: 14px; line-height: 1.5; }
+  .app { max-width: 1100px; margin: 0 auto; padding: 1.5rem 1rem; }
+  h1 { font-size: 20px; font-weight: 500; margin-bottom: 4px; }
+  .subtitle { font-size: 13px; color: var(--text2); margin-bottom: 1.5rem; }
+  .tabs { display: flex; gap: 4px; border-bottom: 0.5px solid var(--border); margin-bottom: 1.5rem; }
+  .tab { font-size: 13px; padding: 7px 16px; cursor: pointer; border: 0.5px solid transparent; border-bottom: none; border-radius: 6px 6px 0 0; color: var(--text2); background: transparent; }
+  .tab.active { border-color: var(--border2); background: var(--bg); color: var(--text); font-weight: 500; border-bottom: 1px solid var(--bg); margin-bottom: -1px; }
+  .panel { display: none; } .panel.active { display: block; }
+  .card { background: var(--bg); border: 0.5px solid var(--border); border-radius: var(--radius-lg); padding: 1.25rem; }
+
+  /* MATRIX */
+  .filters { display: flex; gap: 8px; margin-bottom: 1rem; flex-wrap: wrap; }
+  .filters select { font-size: 12px; padding: 5px 10px; border-radius: var(--radius); border: 0.5px solid var(--border2); background: var(--bg2); color: var(--text); }
+  .legend { display: flex; gap: 16px; margin-bottom: 12px; flex-wrap: wrap; }
+  .legend-item { display: flex; align-items: center; gap: 6px; font-size: 11px; color: var(--text2); }
+  .legend-dot { width: 13px; height: 13px; border-radius: 3px; }
+  .matrix-wrap { overflow-x: auto; }
+  table.matrix { width: 100%; border-collapse: collapse; font-size: 12px; min-width: 700px; }
+  table.matrix th { padding: 6px 8px; font-weight: 500; color: var(--text2); text-align: left; border-bottom: 0.5px solid var(--border); white-space: nowrap; }
+  table.matrix th.proj { font-size: 10px; max-width: 70px; overflow: hidden; text-overflow: ellipsis; }
+  table.matrix td { padding: 5px 8px; border-bottom: 0.5px solid var(--border); vertical-align: middle; }
+  table.matrix tr:hover td { background: var(--bg2); }
+  .avatar { width: 26px; height: 26px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 500; flex-shrink: 0; }
+  .member-cell { display: flex; align-items: center; gap: 8px; white-space: nowrap; }
+  .dot { width: 13px; height: 13px; border-radius: 3px; margin: auto; }
+  .badge { display: inline-block; font-size: 10px; padding: 1px 6px; border-radius: 99px; font-weight: 500; }
+
+  /* TIMELINE */
+  .tl-controls { display: flex; align-items: center; gap: 8px; margin-bottom: 1rem; flex-wrap: wrap; }
+  .nav-btn { font-size: 13px; padding: 4px 12px; cursor: pointer; border-radius: var(--radius); border: 0.5px solid var(--border2); background: transparent; color: var(--text); }
+  .nav-btn:hover { background: var(--bg2); }
+  .month-label { font-size: 15px; font-weight: 500; min-width: 130px; text-align: center; }
+  .timeline-box { border: 0.5px solid var(--border); border-radius: var(--radius-lg); overflow: hidden; overflow-x: auto; }
+  .tl-inner { min-width: 600px; }
+  .tl-head { display: flex; background: var(--bg2); border-bottom: 0.5px solid var(--border); }
+  .tl-name-col { width: 110px; flex-shrink: 0; padding: 5px 10px; font-size: 11px; font-weight: 500; color: var(--text3); border-right: 0.5px solid var(--border); }
+  .tl-days-head { flex: 1; display: flex; }
+  .day-h { flex: 1; text-align: center; font-size: 9px; color: var(--text3); padding: 4px 0; border-right: 0.5px solid var(--border); }
+  .day-h:last-child { border-right: none; }
+  .day-h.we { background: var(--bg3); }
+  .day-h.tday { background: #E6F1FB; color: #0C447C; }
+  .tl-row { display: flex; border-bottom: 0.5px solid var(--border); }
+  .tl-row:last-child { border-bottom: none; }
+  .tl-name { width: 110px; flex-shrink: 0; padding: 6px 10px; border-right: 0.5px solid var(--border); display: flex; align-items: center; gap: 6px; background: var(--bg); }
+  .tl-cells { flex: 1; display: flex; position: relative; min-height: 34px; }
+  .tl-cell { flex: 1; border-right: 0.5px solid var(--border); }
+  .tl-cell:last-child { border-right: none; }
+  .tl-cell.we { background: var(--bg3); }
+  .vac-bar { position: absolute; top: 5px; bottom: 5px; border-radius: 3px; display: flex; align-items: center; padding: 0 5px; font-size: 10px; font-weight: 500; color: #fff; white-space: nowrap; overflow: hidden; cursor: pointer; z-index: 2; }
+  .overlap-row { background: var(--bg2); }
+  .overlap-fill { position: absolute; top: 0; bottom: 0; border-radius: 2px; z-index: 1; }
+  .stat-row { display: flex; gap: 10px; margin-top: 1rem; flex-wrap: wrap; }
+  .stat { background: var(--bg2); border-radius: var(--radius); padding: 8px 16px; font-size: 12px; color: var(--text2); }
+  .stat strong { font-size: 20px; font-weight: 500; color: var(--text); display: block; }
+  .stat.warn { background: #FCEBEB; }
+  .stat.warn strong { color: #A32D2D; }
+
+  /* VACATIONS LIST */
+  .vac-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; margin-top: 1rem; }
+  .vcard { background: var(--bg); border: 0.5px solid var(--border); border-radius: var(--radius-lg); padding: 1rem; }
+  .vcard-head { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+  .vcard-name { font-size: 13px; font-weight: 500; }
+  .vcard-role { font-size: 11px; color: var(--text2); }
+  .vcard-dates { font-size: 12px; color: var(--text2); padding: 5px 8px; background: var(--bg2); border-radius: var(--radius); margin-bottom: 8px; }
+  .proj-row { display: flex; align-items: center; justify-content: space-between; padding: 3px 0; border-bottom: 0.5px solid var(--border); gap: 8px; font-size: 12px; }
+  .proj-row:last-child { border-bottom: none; }
+  .replace-select { font-size: 11px; padding: 3px 6px; border-radius: 4px; border: 0.5px solid var(--border2); background: var(--bg2); color: var(--text); max-width: 110px; }
+  .empty-state { text-align: center; padding: 2rem; color: var(--text3); font-size: 13px; }
+
+  /* FORMS */
+  .add-btn { font-size: 12px; padding: 6px 14px; cursor: pointer; border-radius: var(--radius); border: 0.5px solid var(--border2); background: var(--bg2); color: var(--text); }
+  .add-btn:hover { background: var(--bg3); }
+  .add-form { background: var(--bg2); border-radius: var(--radius-lg); padding: 1rem; margin-bottom: 1rem; border: 0.5px solid var(--border); }
+  .add-form label { font-size: 12px; color: var(--text2); display: block; margin-bottom: 3px; }
+  .add-form select, .add-form input { font-size: 12px; padding: 5px 8px; border-radius: var(--radius); border: 0.5px solid var(--border2); background: var(--bg); color: var(--text); width: 100%; margin-bottom: 8px; }
+  .form-row { display: flex; gap: 8px; } .form-row > div { flex: 1; }
+  .save-btn { font-size: 12px; padding: 6px 16px; cursor: pointer; border-radius: var(--radius); border: 0.5px solid var(--blue); background: var(--blue); color: #E6F1FB; font-weight: 500; }
+  .save-btn:hover { background: var(--blue-text); }
+  .cancel-btn { font-size: 12px; padding: 6px 12px; cursor: pointer; border-radius: var(--radius); border: 0.5px solid var(--border2); background: transparent; color: var(--text2); }
+  .del-btn { font-size: 11px; padding: 2px 8px; cursor: pointer; border-radius: 4px; border: 0.5px solid var(--border2); background: transparent; color: var(--text3); margin-left: auto; }
+</style>
+</head>
+<body>
+<div class="app">
+  <h1>Dashboard équipe</h1>
+  <p class="subtitle">Visibilité projets, congés et remplaçants</p>
+
+  <div class="tabs">
+    <div class="tab active" onclick="showTab('matrix')">Projets par membre</div>
+    <div class="tab" onclick="showTab('timeline')">Timeline des congés</div>
+    <div class="tab" onclick="showTab('vacations')">Congés &amp; remplaçants</div>
+  </div>
+
+  <!-- MATRIX -->
+  <div id="panel-matrix" class="panel active card">
+    <div class="filters">
+      <select id="filter-member" onchange="renderMatrix()"><option value="">Tous les membres</option></select>
+      <select id="filter-proj" onchange="renderMatrix()"><option value="">Tous les projets</option></select>
+    </div>
+    <div class="legend">
+      <div class="legend-item"><div class="legend-dot" style="background:#7F77DD;"></div> Chef de projet</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#EF9F27;"></div> Resp. support / CP</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#1D9E75;"></div> Développeur</div>
+      <div class="legend-item"><div class="legend-dot" style="border:0.5px solid #ccc;"></div> Non assigné</div>
+    </div>
+    <div class="matrix-wrap"><table class="matrix" id="matrix-table"></table></div>
+  </div>
+
+  <!-- TIMELINE -->
+  <div id="panel-timeline" class="panel">
+    <div class="card">
+      <div class="tl-controls">
+        <button class="nav-btn" onclick="changeMonth(-1)">&#8592;</button>
+        <span class="month-label" id="month-label"></span>
+        <button class="nav-btn" onclick="changeMonth(1)">&#8594;</button>
+        <button class="add-btn" style="margin-left:auto;" onclick="toggleTLForm()">+ Ajouter un congé</button>
+      </div>
+      <div id="tl-add-form" style="display:none;">
+        <div class="add-form">
+          <div class="form-row">
+            <div><label>Membre</label><select id="tl-form-member"></select></div>
+            <div><label>Du</label><input type="date" id="tl-form-start"></div>
+            <div><label>Au</label><input type="date" id="tl-form-end"></div>
+          </div>
+          <div style="display:flex;gap:8px;">
+            <button class="save-btn" onclick="addVacTL()">Enregistrer</button>
+            <button class="cancel-btn" onclick="toggleTLForm()">Annuler</button>
+          </div>
+        </div>
+      </div>
+      <div class="legend" style="margin-bottom:1rem;">
+        <div class="legend-item"><div class="legend-dot" style="background:#7F77DD;"></div> CP</div>
+        <div class="legend-item"><div class="legend-dot" style="background:#EF9F27;"></div> Resp. support</div>
+        <div class="legend-item"><div class="legend-dot" style="background:#1D9E75;"></div> Dev</div>
+        <div class="legend-item"><div class="legend-dot" style="background:#E24B4A;opacity:0.5;"></div> Chevauchement</div>
+      </div>
+      <div class="timeline-box"><div class="tl-inner" id="timeline-inner"></div></div>
+      <div class="stat-row" id="tl-stats"></div>
+    </div>
+  </div>
+
+  <!-- VACATIONS -->
+  <div id="panel-vacations" class="panel">
+    <div class="card">
+      <div style="display:flex;justify-content:space-between;align-items:center;">
+        <span style="font-size:13px;color:var(--text2);" id="vac-count"></span>
+        <button class="add-btn" onclick="toggleVacForm()">+ Ajouter un congé</button>
+      </div>
+      <div id="vac-add-form" style="display:none;margin-top:1rem;">
+        <div class="add-form">
+          <div class="form-row">
+            <div><label>Membre</label><select id="vac-form-member"></select></div>
+            <div><label>Du</label><input type="date" id="vac-form-start"></div>
+            <div><label>Au</label><input type="date" id="vac-form-end"></div>
+          </div>
+          <div style="display:flex;gap:8px;">
+            <button class="save-btn" onclick="addVacForm()">Enregistrer</button>
+            <button class="cancel-btn" onclick="toggleVacForm()">Annuler</button>
+          </div>
+        </div>
+      </div>
+      <div id="vac-list"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+const MEMBERS=[
+  {id:'selim',  name:'Selim',  role:'support', label:'Resp. support / CP'},
+  {id:'maxime', name:'Maxime', role:'cp',      label:'Chef de projet'},
+  {id:'fred',   name:'Fred',   role:'cp',      label:'Chef de projet'},
+  {id:'antho',  name:'Antho',  role:'dev',     label:'Développeur'},
+  {id:'imene',  name:'Imene',  role:'dev',     label:'Développeuse'},
+  {id:'teva',   name:'Téva',   role:'dev',     label:'Développeur'},
+  {id:'kylian', name:'Kylian', role:'dev',     label:'Développeur'},
+];
+const PROJECTS=[
+  {id:'octopia-shopify', name:'Octopia Shopify', members:['maxime','kylian','selim']},
+  {id:'octopia-ps',      name:'Octopia PS',      members:['maxime','imene','selim']},
+  {id:'linxo-ps',        name:'Linxo PS',        members:['maxime','antho','selim']},
+  {id:'linxo-woo',       name:'Linxo Woo',       members:['maxime','teva','selim']},
+  {id:'lcl-ps',          name:'LCL PS',          members:['fred','selim','antho']},
+  {id:'lcl-woo',         name:'LCL Woo',         members:['fred','selim','teva']},
+  {id:'colisismo',       name:'Colisismo',        members:['maxime','selim','imene']},
+  {id:'monext-proximis', name:'Monext Proximis',  members:['maxime']},
+  {id:'monext-sfcc',     name:'Monext SFCC',      members:['maxime']},
+  {id:'incenza',         name:'Incenza',          members:['teva']},
+  {id:'planet',          name:'Planet',           members:['fred','antho']},
+  {id:'beezup-ps',       name:'Beezup PS',        members:['fred','imene','selim']},
+  {id:'beezup-woo',      name:'Beezup Woo',       members:['fred','selim','teva']},
+  {id:'caps-ps',         name:'CAPS PS',          members:['fred','selim','imene']},
+  {id:'caps-woo',        name:'CAPS Woo',         members:['fred','selim','teva']},
+  {id:'hipay',           name:'Hipay',            members:['fred','antho']},
+];
+const ROLE_COLOR={cp:'#7F77DD', support:'#EF9F27', dev:'#1D9E75'};
+const ROLE_BG={cp:'#EEEDFE', support:'#FAEEDA', dev:'#E1F5EE'};
+const ROLE_TXT={cp:'#3C3489', support:'#633806', dev:'#085041'};
+const BADGE_LABEL={cp:'CP', dev:'Dev', support:'Resp. support / CP'};
+const MONTHS_FR=['Janvier','Février','Mars','Avril','Mai','Juin','Juillet','Août','Septembre','Octobre','Novembre','Décembre'];
+
+const STORAGE_KEY='team-dashboard-vacations-v1';
+let vacations=[];
+
+function loadVacations(){
+  try{const s=localStorage.getItem(STORAGE_KEY);if(s)vacations=JSON.parse(s);}catch(e){}
+  if(vacations.length===0) vacations=[{id:1,memberId:'maxime',start:'2025-08-08',end:'2025-08-30',replacements:{}}];
+}
+function saveVacations(){try{localStorage.setItem(STORAGE_KEY,JSON.stringify(vacations));}catch(e){}}
+
+function initials(n){return n.slice(0,2).toUpperCase();}
+function parseDate(s){const[y,m,d]=s.split('-').map(Number);return new Date(y,m-1,d);}
+function daysInMonth(y,m){return new Date(y,m+1,0).getDate();}
+function isWeekend(y,m,d){const dw=new Date(y,m,d).getDay();return dw===0||dw===6;}
+
+function showTab(t){
+  document.querySelectorAll('.tab').forEach((el,i)=>el.classList.toggle('active',['matrix','timeline','vacations'][i]===t));
+  document.querySelectorAll('.panel').forEach(el=>el.classList.remove('active'));
+  document.getElementById('panel-'+t).classList.add('active');
+  if(t==='timeline') renderTimeline();
+  if(t==='vacations') renderVacations();
+}
+
+/* ---- MATRIX ---- */
+function populateFilters(){
+  const ms=document.getElementById('filter-member'),ps=document.getElementById('filter-proj');
+  MEMBERS.forEach(m=>{const o=document.createElement('option');o.value=m.id;o.textContent=m.name;ms.appendChild(o);});
+  PROJECTS.forEach(p=>{const o=document.createElement('option');o.value=p.id;o.textContent=p.name;ps.appendChild(o);});
+  ['tl-form-member','vac-form-member'].forEach(id=>{
+    const sel=document.getElementById(id);
+    MEMBERS.forEach(m=>{const o=document.createElement('option');o.value=m.id;o.textContent=m.name;sel.appendChild(o);});
+  });
+}
+
+function renderMatrix(){
+  const mf=document.getElementById('filter-member').value;
+  const pf=document.getElementById('filter-proj').value;
+  let members=MEMBERS.filter(m=>!mf||m.id===mf);
+  let projects=pf?PROJECTS.filter(p=>p.id===pf):(mf?PROJECTS.filter(p=>p.members.includes(mf)):PROJECTS);
+  const t=document.getElementById('matrix-table');
+  let h='<thead><tr><th style="min-width:140px;">Membre</th>';
+  projects.forEach(p=>h+=`<th class="proj" title="${p.name}">${p.name}</th>`);
+  h+='<th>Nb projets</th></tr></thead><tbody>';
+  members.forEach(m=>{
+    const count=projects.filter(p=>p.members.includes(m.id)).length;
+    h+=`<tr><td><div class="member-cell"><div class="avatar" style="background:${ROLE_BG[m.role]};color:${ROLE_TXT[m.role]};">${initials(m.name)}</div><div><div style="font-size:12px;font-weight:500;">${m.name}</div><span class="badge" style="background:${ROLE_BG[m.role]};color:${ROLE_TXT[m.role]};">${BADGE_LABEL[m.role]}</span></div></div></td>`;
+    projects.forEach(p=>{
+      const a=p.members.includes(m.id);
+      h+=`<td><div class="dot" style="background:${a?ROLE_COLOR[m.role]:'transparent'};${!a?'border:0.5px solid #ccc;':''}"></div></td>`;
+    });
+    h+=`<td style="font-size:12px;font-weight:500;color:var(--text2);">${count}</td></tr>`;
+  });
+  t.innerHTML=h+'</tbody>';
+}
+
+/* ---- TIMELINE ---- */
+let tlYear=2025, tlMonth=7;
+function changeMonth(d){
+  tlMonth+=d;
+  if(tlMonth>11){tlMonth=0;tlYear++;}
+  if(tlMonth<0){tlMonth=11;tlYear--;}
+  renderTimeline();
+}
+function toggleTLForm(){const f=document.getElementById('tl-add-form');f.style.display=f.style.display==='none'?'block':'none';}
+function addVacTL(){
+  const mid=document.getElementById('tl-form-member').value;
+  const s=document.getElementById('tl-form-start').value;
+  const e=document.getElementById('tl-form-end').value;
+  if(!mid||!s||!e){alert('Remplissez tous les champs.');return;}
+  vacations.push({id:Date.now(),memberId:mid,start:s,end:e,replacements:{}});
+  saveVacations(); toggleTLForm(); renderTimeline(); renderVacations();
+}
+function removeVac(id){vacations=vacations.filter(v=>v.id!==id);saveVacations();renderTimeline();renderVacations();}
+
+function getVacsInMonth(memberId,y,m){
+  const days=daysInMonth(y,m);
+  const ms=new Date(y,m,1), me=new Date(y,m,days);
+  return vacations.filter(v=>{
+    if(v.memberId!==memberId)return false;
+    const vs=parseDate(v.start),ve=parseDate(v.end);
+    return vs<=me&&ve>=ms;
+  }).map(v=>{
+    const vs=parseDate(v.start),ve=parseDate(v.end);
+    const cs=vs<ms?ms:vs, ce=ve>me?me:ve;
+    return{...v,startDay:cs.getDate(),endDay:ce.getDate()};
+  });
+}
+
+function getOverlap(y,m){
+  const days=daysInMonth(y,m), c=new Array(days+1).fill(0);
+  MEMBERS.forEach(mem=>getVacsInMonth(mem.id,y,m).forEach(v=>{for(let d=v.startDay;d<=v.endDay;d++)c[d]++;}));
+  return c;
+}
+
+function renderTimeline(){
+  const y=tlYear,m=tlMonth, days=daysInMonth(y,m);
+  document.getElementById('month-label').textContent=`${MONTHS_FR[m]} ${y}`;
+  const today=new Date();
+  const todayDay=(today.getFullYear()===y&&today.getMonth()===m)?today.getDate():-1;
+  const overlap=getOverlap(y,m);
+  const maxOvl=Math.max(...overlap.slice(1));
+  let h='<div class="tl-head"><div class="tl-name-col">Membre</div><div class="tl-days-head">';
+  for(let d=1;d<=days;d++){
+    const we=isWeekend(y,m,d),td=d===todayDay;
+    h+=`<div class="day-h${we?' we':''}${td?' tday':''}">${d}</div>`;
+  }
+  h+='</div></div>';
+  MEMBERS.forEach(mem=>{
+    const vacsM=getVacsInMonth(mem.id,y,m);
+    h+=`<div class="tl-row"><div class="tl-name"><div class="avatar" style="background:${ROLE_BG[mem.role]};color:${ROLE_TXT[mem.role]};width:22px;height:22px;font-size:9px;">${initials(mem.name)}</div><span style="font-size:11px;font-weight:500;">${mem.name}</span></div><div class="tl-cells">`;
+    for(let d=1;d<=days;d++) h+=`<div class="tl-cell${isWeekend(y,m,d)?' we':''}"></div>`;
+    vacsM.forEach(v=>{
+      const l=((v.startDay-1)/days*100).toFixed(2);
+      const w=((v.endDay-v.startDay+1)/days*100).toFixed(2);
+      h+=`<div class="vac-bar" style="left:${l}%;width:${w}%;background:${ROLE_COLOR[mem.role]};" title="Cliquer pour supprimer" onclick="removeVac(${v.id})">${v.endDay-v.startDay>=2?mem.name:''}</div>`;
+    });
+    h+='</div></div>';
+  });
+  if(maxOvl>=2){
+    h+=`<div class="tl-row overlap-row" style="min-height:24px;"><div class="tl-name" style="background:var(--bg2);"><span style="font-size:10px;color:var(--text3);">Chevauch.</span></div><div class="tl-cells" style="min-height:24px;">`;
+    for(let d=1;d<=days;d++) h+=`<div class="tl-cell${isWeekend(y,m,d)?' we':''}"></div>`;
+    for(let d=1;d<=days;d++){
+      if(overlap[d]>=2){
+        const l=((d-1)/days*100).toFixed(2), w=(1/days*100).toFixed(2);
+        const op=Math.min(0.2+(overlap[d]-1)/4*0.6,0.8).toFixed(2);
+        h+=`<div class="overlap-fill" style="left:${l}%;width:${w}%;background:#E24B4A;opacity:${op};"></div>`;
+      }
+    }
+    h+='</div></div>';
+  }
+  document.getElementById('timeline-inner').innerHTML=h;
+  const vacCount=MEMBERS.filter(mem=>getVacsInMonth(mem.id,y,m).length>0).length;
+  let ovlDays=0; for(let d=1;d<=days;d++) if(overlap[d]>=2&&!isWeekend(y,m,d)) ovlDays++;
+  const critDays=[]; for(let d=1;d<=days;d++) if(overlap[d]>=3&&!isWeekend(y,m,d)) critDays.push(d);
+  let sh=`<div class="stat"><strong>${vacCount}</strong>membre${vacCount>1?'s':''} absent${vacCount>1?'s':''}</div>
+    <div class="stat"><strong>${ovlDays}</strong>jour${ovlDays>1?'s':''} chevauchement</div>`;
+  if(critDays.length>0) sh+=`<div class="stat warn"><strong>${critDays.length}</strong>jour${critDays.length>1?'s':''} critique${critDays.length>1?'s':''} (3+ absents)</div>`;
+  document.getElementById('tl-stats').innerHTML=sh;
+}
+
+/* ---- VACATIONS LIST ---- */
+function toggleVacForm(){const f=document.getElementById('vac-add-form');f.style.display=f.style.display==='none'?'block':'none';}
+function addVacForm(){
+  const mid=document.getElementById('vac-form-member').value;
+  const s=document.getElementById('vac-form-start').value;
+  const e=document.getElementById('vac-form-end').value;
+  if(!mid||!s||!e){alert('Remplissez tous les champs.');return;}
+  vacations.push({id:Date.now(),memberId:mid,start:s,end:e,replacements:{}});
+  saveVacations(); toggleVacForm(); renderVacations();
+}
+function setReplacement(vacId,projId,replId){
+  const v=vacations.find(v=>v.id===vacId);
+  if(v){if(!v.replacements)v.replacements={};v.replacements[projId]=replId;saveVacations();}
+}
+function renderVacations(){
+  const list=document.getElementById('vac-list');
+  const countEl=document.getElementById('vac-count');
+  countEl.textContent=vacations.length===0?'Aucun congé enregistré':`${vacations.length} congé${vacations.length>1?'s':''} enregistré${vacations.length>1?'s':''}`;
+  if(vacations.length===0){list.innerHTML='<div class="empty-state">Aucun congé enregistré.<br>Cliquez sur "+ Ajouter un congé" pour commencer.</div>';return;}
+  let h='<div class="vac-grid">';
+  vacations.forEach(v=>{
+    const mem=MEMBERS.find(x=>x.id===v.memberId);if(!mem)return;
+    const projs=PROJECTS.filter(p=>p.members.includes(mem.id));
+    const sf=new Date(v.start).toLocaleDateString('fr-FR',{day:'2-digit',month:'short',year:'numeric'});
+    const ef=new Date(v.end).toLocaleDateString('fr-FR',{day:'2-digit',month:'short',year:'numeric'});
+    h+=`<div class="vcard"><div class="vcard-head">
+      <div class="avatar" style="background:${ROLE_BG[mem.role]};color:${ROLE_TXT[mem.role]};width:34px;height:34px;font-size:11px;">${initials(mem.name)}</div>
+      <div><div class="vcard-name">${mem.name}</div><div class="vcard-role">${mem.label}</div></div>
+      <button class="del-btn" onclick="removeVac(${v.id})">Suppr.</button>
+    </div>
+    <div class="vcard-dates"><span style="font-size:10px;color:var(--text3);display:block;margin-bottom:2px;">Période de congé</span>${sf} → ${ef}</div>
+    <div style="font-size:11px;color:var(--text3);margin-bottom:6px;">Projets concernés — définir un remplaçant</div>`;
+    if(projs.length===0) h+='<div style="font-size:12px;color:var(--text3);">Aucun projet assigné</div>';
+    projs.forEach(p=>{
+      h+=`<div class="proj-row"><span>${p.name}</span><select class="replace-select" onchange="setReplacement(${v.id},'${p.id}',this.value)"><option value="">— remplaçant</option>`;
+      MEMBERS.filter(x=>x.id!==mem.id).forEach(o=>{
+        const already=p.members.includes(o.id);
+        const sel=v.replacements&&v.replacements[p.id]===o.id?'selected':'';
+        h+=`<option value="${o.id}" ${sel}>${o.name}${already?' (déjà assigné)':''}</option>`;
+      });
+      h+=`</select></div>`;
+    });
+    h+='</div>';
+  });
+  list.innerHTML=h+'</div>';
+}
+
+loadVacations();
+populateFilters();
+renderMatrix();
+renderTimeline();
+renderVacations();
+</script>
+</body>
+</html>
